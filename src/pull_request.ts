@@ -2,6 +2,9 @@ import { warning } from "@actions/core";
 import { Config } from "./config";
 import { initOctokit } from "./octokit";
 import { loadContext } from "./context";
+import runSummaryPrompt from "./prompts";
+import { buildInitialMessage, buildWalkthroughMessage } from "./messages";
+import { parseFileDiff } from "./diff";
 
 export async function handlePullRequest(config: Config) {
   const context = await loadContext();
@@ -21,24 +24,50 @@ export async function handlePullRequest(config: Config) {
 
   const octokit = initOctokit(config.githubToken);
 
-  // Get PR files
+  // Get modified files
   const { data: files } = await octokit.rest.pulls.listFiles({
     ...context.repo,
     pull_number: pull_request.number,
   });
+  const fileDiffs = files.map(parseFileDiff);
 
-  console.log("files: ", files);
-  console.log("pull_request: ", pull_request);
+  // Create initial comment with the summary
+  const initialComment = await octokit.rest.issues.createComment({
+    ...context.repo,
+    issue_number: pull_request.number,
+    body: buildInitialMessage(
+      pull_request.base.sha,
+      pull_request.head.sha,
+      fileDiffs
+    ),
+  });
 
-  return {
-    title: pull_request.title,
-    description: pull_request.body || "",
-    files: files.map((file) => ({
-      filename: file.filename,
-      status: file.status,
-      additions: file.additions,
-      deletions: file.deletions,
-      patch: file.patch,
-    })),
-  };
+  // Get commit messages
+  const { data: commits } = await octokit.rest.pulls.listCommits({
+    ...context.repo,
+    pull_number: pull_request.number,
+  });
+
+  // Generate PR summary
+  const summary = await runSummaryPrompt({
+    prTitle: pull_request.title,
+    prDescription: pull_request.body || "",
+    commitMessages: commits.map((commit) => commit.commit.message),
+    files: files,
+  });
+
+  // Update PR title and description
+  await octokit.rest.pulls.update({
+    ...context.repo,
+    pull_number: pull_request.number,
+    title: summary.title,
+    body: summary.description,
+  });
+
+  // Update initial comment with the walkthrough
+  await octokit.rest.issues.updateComment({
+    ...context.repo,
+    comment_id: initialComment.data.id,
+    body: buildWalkthroughMessage(summary),
+  });
 }
