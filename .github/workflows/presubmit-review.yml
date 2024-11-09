@@ -1,0 +1,26 @@
+name: Presubmit.ai - Code Review
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+on:
+  pull_request:
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: presubmit/ai-reviewer@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        with:
+          llm_model: "claude-3-5-sonnet-20241022"
+          enable_code_review: true
+          enable_pr_summary: true
+          enable_title_generation: true
+          enable_overview_comment: true
