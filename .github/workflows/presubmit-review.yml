@@ -1,4 +1,4 @@
-name: Presubmit.ai - Code Review
+name: Presubmit.ai
 
 permissions:
   contents: read
@@ -11,7 +11,7 @@ on:
     types: [created]
 
 jobs:
-  review:
+  Review:
     runs-on: ubuntu-latest
     steps:
       - uses: presubmit/ai-reviewer@latest

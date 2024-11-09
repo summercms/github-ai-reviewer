@@ -3,7 +3,11 @@ import { Config } from "./config";
 import { initOctokit } from "./octokit";
 import { loadContext } from "./context";
 import runSummaryPrompt from "./prompts";
-import { buildInitialMessage, buildWalkthroughMessage } from "./messages";
+import {
+  buildLoadingMessage,
+  buildWalkthroughMessage,
+  OVERVIEW_MESSAGE_SIGNATURE,
+} from "./messages";
 import { parseFileDiff } from "./diff";
 
 export async function handlePullRequest(config: Config) {
@@ -39,13 +43,31 @@ export async function handlePullRequest(config: Config) {
   });
   info(`successfully fetched commit messages`);
 
-  // Create initial comment with the summary
-  const initialComment = await octokit.rest.issues.createComment({
+  // Find or create overview comment with the summary
+  const { data: comments } = await octokit.rest.issues.listComments({
     ...context.repo,
     issue_number: pull_request.number,
-    body: buildInitialMessage(commits, fileDiffs),
   });
-  info(`posted initial comment`);
+  let overviewComment = comments.find((comment) =>
+    comment.body?.includes(OVERVIEW_MESSAGE_SIGNATURE)
+  );
+  if (overviewComment) {
+    await octokit.rest.issues.updateComment({
+      ...context.repo,
+      comment_id: overviewComment.id,
+      body: buildLoadingMessage(commits, fileDiffs),
+    });
+    info(`updated existing overview comment`);
+  } else {
+    overviewComment = (
+      await octokit.rest.issues.createComment({
+        ...context.repo,
+        issue_number: pull_request.number,
+        body: buildLoadingMessage(commits, fileDiffs),
+      })
+    ).data;
+    info(`posted new overview loading comment`);
+  }
 
   // Generate PR summary
   const summary = await runSummaryPrompt({
@@ -65,11 +87,11 @@ export async function handlePullRequest(config: Config) {
   });
   info(`updated pull request title and description`);
 
-  // Update initial comment with the walkthrough
+  // Update overview comment with the walkthrough
   await octokit.rest.issues.updateComment({
     ...context.repo,
-    comment_id: initialComment.data.id,
+    comment_id: overviewComment.id,
     body: buildWalkthroughMessage(summary),
   });
-  info(`posted walkthrough`);
+  info(`updated overview comment with walkthrough`);
 }

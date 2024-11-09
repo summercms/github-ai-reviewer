@@ -2,7 +2,7 @@ name: "AI Code Reviewer for Pull Requests"
 description: "Review, summarize and auto-fix pull requests with AI"
 author: "Presubmit.ai"
 branding:
-  icon: "git-merge"
+  icon: "check-square"
   color: "black"
 
 inputs:
