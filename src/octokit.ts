@@ -5,7 +5,7 @@ import { throttling } from "@octokit/plugin-throttling";
 
 const SmartOctokit = Octokit.plugin(throttling, retry);
 
-export const initOctokit = (token?: string) => {
+export function initOctokit(token?: string): Octokit {
   if (!token) {
     throw new Error("No github token");
   }
@@ -45,4 +45,4 @@ Retry after: ${retryAfter} seconds`
       },
     },
   });
-};
+}
