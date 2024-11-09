@@ -1,19 +1,39 @@
+import { context } from "@actions/github";
 import { FileDiff } from "./diff";
 import { PullRequestSummary } from "./prompts";
 
 export function buildInitialMessage(
-  baseCommit: string,
-  headCommit: string,
+  commits: {
+    sha: string;
+    commit: {
+      message: string;
+    };
+  }[],
   fileDiffs: FileDiff[]
 ): string {
+  const { owner, repo } = context.repo;
+
   let message = `⏳ **Analyzing changes in this PR...** ⏳\n\n`;
   message += `_This might take a few minutes, please wait_\n\n`;
 
   // Group files by operation
 
   message += `<details>\n<summary>📥 Commits</summary>\n\n`;
-  message += `Analyzing changes from base commit (\`${baseCommit}\`) to head commit (\`${headCommit}\`)\n\n`;
-  message += "\n</details>\n\n";
+  message += `Analyzing changes from base commit (\`${commits[0].sha.slice(
+    0,
+    7
+  )}\`) to head commit (\`${commits[commits.length - 1].sha.slice(0, 7)}\`):\n`;
+
+  for (const commit of commits.reverse()) {
+    message += `- [${commit.sha.slice(
+      0,
+      7
+    )}](https://github.com/${owner}/${repo}/commit/${commit.sha}): ${
+      commit.commit.message
+    }\n`;
+  }
+
+  message += "\n\n</details>\n\n";
 
   message += `<details>\n<summary>📁 Files being considered (${fileDiffs.length})</summary>\n\n`;
   for (const diff of fileDiffs) {

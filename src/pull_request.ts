@@ -32,23 +32,20 @@ export async function handlePullRequest(config: Config) {
   const fileDiffs = files.map(parseFileDiff);
   info(`successfully fetched file diffs`);
 
-  // Create initial comment with the summary
-  const initialComment = await octokit.rest.issues.createComment({
-    ...context.repo,
-    issue_number: pull_request.number,
-    body: buildInitialMessage(
-      pull_request.base.sha,
-      pull_request.head.sha,
-      fileDiffs
-    ),
-  });
-  info(`posted initial comment`);
   // Get commit messages
   const { data: commits } = await octokit.rest.pulls.listCommits({
     ...context.repo,
     pull_number: pull_request.number,
   });
   info(`successfully fetched commit messages`);
+
+  // Create initial comment with the summary
+  const initialComment = await octokit.rest.issues.createComment({
+    ...context.repo,
+    issue_number: pull_request.number,
+    body: buildInitialMessage(commits, fileDiffs),
+  });
+  info(`posted initial comment`);
 
   // Generate PR summary
   const summary = await runSummaryPrompt({
