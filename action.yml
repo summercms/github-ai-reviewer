@@ -10,39 +10,22 @@ inputs:
     description: "Whether to automatically generate a summary for the PR"
     required: true
     default: true
+  enable_title_generation:
+    description: "Whether to automatically generate a title for PRs that mention @presubmitai. Needs enable_pr_summary to be true."
+    required: true
+    default: true
+  enable_overview_comment:
+    description: "Whether to automatically generate an overview for the PR. Needs enable_pr_summary to be true."
+    required: true
+    default: true
   enable_code_review:
     description: "Whether to review code changes in the PR and add comments"
     required: true
     default: true
-  enable_title_generation:
-    description: "Whether to automatically generate a title for PRs that mention @presubmitai"
+  llm_model:
+    description: "The LLM model to use for code review"
     required: true
-    default: false
-
-  # runs:
-  #   using: "composite"
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-
-  #     - name: Install Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: 20
-  #         cache: "pnpm"
-
-  #     - uses: pnpm/action-setup@v4
-  #       name: Install pnpm
-  #       with:
-  #         version: 9
-  #         run_install: false
-
-  #     - name: Install dependencies
-  #       run: pnpm install
-
-  #     - name: Run AI Reviewer
-  #       shell: bash
-  #       run: npx ai-reviewer
+    default: "claude-3-5-sonnet-20241022"
 runs:
   using: "node20"
   main: "dist/index.js"

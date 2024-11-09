@@ -13,23 +13,21 @@ async function loadDebugContext(): Promise<Context> {
     throw new Error("GITHUB_TOKEN is not set");
   }
   const octokit = getOctokit(process.env.GITHUB_TOKEN);
-  const { data: repo } = await octokit.rest.repos.get({
-    owner: "presubmit",
-    repo: "ai-reviewer",
-  });
+
+  const [owner, repo] = process.env.GITHUB_REPOSITORY?.split("/") || [];
 
   const { data: pull_request } = await octokit.rest.pulls.get({
-    owner: "presubmit",
-    repo: "ai-reviewer",
-    pull_number: 1,
+    owner,
+    repo,
+    pull_number: parseInt(process.env.GITHUB_PULL_REQUEST || "1"),
   });
 
   return {
     ...context,
-    eventName: "pull_request",
+    eventName: process.env.GITHUB_EVENT_NAME || "",
     repo: {
-      owner: repo.owner.login,
-      repo: repo.name,
+      owner,
+      repo,
     },
     payload: {
       pull_request: {
