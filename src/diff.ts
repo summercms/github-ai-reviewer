@@ -1,4 +1,4 @@
-type File = {
+export type File = {
   filename: string;
   status:
     | "added"
@@ -172,13 +172,10 @@ export function formatFileDiff(file: File): string {
   return header;
 }
 
-export function generateFileCodeDiff(
-  fileDiff: FileDiff,
-  simplified: boolean = false
-): string {
-  const hunksText = simplified
-    ? fileDiff.patch || ""
-    : fileDiff.hunks.map((hunk) => formatDiffHunk(hunk)).join("\n\n");
+export function generateFileCodeDiff(fileDiff: FileDiff): string {
+  const hunksText = fileDiff.hunks
+    .map((hunk) => formatDiffHunk(hunk))
+    .join("\n\n");
 
   let header = `## File ${fileDiff.status}: `;
   if (fileDiff.previous_filename) {

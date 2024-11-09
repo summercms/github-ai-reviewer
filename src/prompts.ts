@@ -1,24 +1,12 @@
 import { runPrompt } from "./ai";
 import { z } from "zod";
-import { formatFileDiff } from "./diff";
+import { formatFileDiff, File, FileDiff, generateFileCodeDiff } from "./diff";
 
 type PullRequestSummaryPrompt = {
   prTitle: string;
   prDescription: string;
   commitMessages: string[];
-  files: {
-    filename: string;
-    status:
-      | "added"
-      | "removed"
-      | "modified"
-      | "renamed"
-      | "copied"
-      | "changed"
-      | "unchanged";
-    previous_filename?: string;
-    patch?: string;
-  }[];
+  files: File[];
 };
 
 export type PullRequestSummary = {
@@ -106,4 +94,193 @@ Make sure each affected file is summarized and it's part of the returned JSON.
     systemPrompt,
     schema,
   })) as PullRequestSummary;
+}
+
+export type AIComment = {
+  file: string;
+  start_line: number;
+  end_line: number;
+  highlighted_code: string;
+  header: string;
+  content: string;
+  label: string;
+};
+
+export type PullRequestReview = {
+  review: {
+    estimated_effort_to_review: number;
+    score: number;
+    has_relevant_tests: boolean;
+    security_concerns: string;
+  };
+  comments: AIComment[];
+};
+
+type PullRequestReviewPrompt = {
+  prTitle: string;
+  prDescription: string;
+  prSummary: string;
+  files: FileDiff[];
+};
+
+export async function runReviewPrompt(
+  pr: PullRequestReviewPrompt
+): Promise<PullRequestReview> {
+  let systemPrompt = `
+<IMPORTANT INSTRUCTIONS>
+You are an experienced senior software engineer tasked with reviewing a Git Pull Request (PR). Your goal is to provide comments to improve code quality, catcht typos, potential bugs or security issues, and provide meaningful code suggestions when applicable.
+    
+The review should focus on new code added in the PR code diff (lines starting with '+')
+ 
+The PR diff will have the following structure:
+======
+## File: 'src/file1.py'
+
+@@ ... @@ def func1():
+__new hunk__
+11  unchanged code line0 in the PR
+12  unchanged code line1 in the PR
+13 +new code line2 added in the PR
+14  unchanged code line3 in the PR
+__old hunk__
+ unchanged code line0
+ unchanged code line1
+-old code line2 removed in the PR
+ unchanged code line3
+
+@@ ... @@ def func2():
+__new hunk__
+ unchanged code line4
++new code line5 removed in the PR
+ unchanged code line6
+
+## File: 'src/file2.py'
+...
+======
+
+- In the format above, the diff is organized into separate '__new hunk__' and '__old hunk__' sections for each code chunk. '__new hunk__' contains the updated code, while '__old hunk__' shows the removed code. If no code was removed in a specific chunk, the __old hunk__ section will be omitted.
+- We also added line numbers for the '__new hunk__' code, to help you refer to the code lines in your suggestions. These line numbers are not part of the actual code, and should only used for reference.
+- Code lines are prefixed with symbols ('+', '-', ' '). The '+' symbol indicates new code added in the PR, the '-' symbol indicates code removed in the PR, and the ' ' symbol indicates unchanged code. The review should address new code added in the PR code diff (lines starting with '+')
+- Use markdown formatting for your comments.
+
+</IMPORTANT INSTRUCTIONS>
+    
+<EXAMPLE>
+{
+    "review": {
+    ...
+    }
+    "comments": [
+    {
+        content: "There's a typo in "upgorading" which should be "upgrading".",
+        header: "Fix typo in error message.",
+        label: "typo",
+        highlighted_code: "      No active plan. Enable code reviews by upgorading to a Pro plan",
+        ...
+    },
+    {
+        content: "Variable 'user_id' is used before it's defined. Consider moving the function call to the end of the file.",
+        header: "Potential runtime error in the code.",
+        label: "bug",
+        ...
+    },
+    ...
+    ]
+}
+</EXAMPLE>
+`;
+
+  let userPrompt = `
+<PR title>
+${pr.prTitle}
+</PR title>
+
+<PR Description>
+${pr.prDescription}
+</PR Description>
+
+<PR Summary>
+${pr.prSummary}
+</PR Summary>
+
+<PR File Diffs>
+${pr.files.map((file) => generateFileCodeDiff(file)).join("\n\n")}
+</PR File Diffs>
+`;
+
+  const commentSchema = z.object({
+    file: z.string().describe("The full file path of the relevant file"),
+    start_line: z
+      .number()
+      .describe(
+        "The relevant line number, from a '__new hunk__' section, where the comment starts (inclusive). Should be derived from the hunk line numbers, and correspond to the beginning of the 'existing code' snippet above. If comment spans a single line, it should equal the 'end_line'"
+      ),
+    end_line: z
+      .number()
+      .describe(
+        "The relevant line number, from a '__new hunk__' section, where the comment ends (inclusive). Should be derived from the hunk line numbers, and correspond to the end of the 'existing code' snippet above. If comment spans a single line, it should equal the 'start_line'"
+      ),
+    content: z
+      .string()
+      .describe(
+        "An actionable comment to enhance, improve or fix the new code introduced in the PR. Use markdown formatting."
+      ),
+    header: z
+      .string()
+      .describe(
+        "A concise, single-sentence overview of the comment. Focus on the 'what'. Be general, and avoid method or variable names."
+      ),
+    highlighted_code: z
+      .string()
+      .describe(
+        "A short code snippet from a '__new hunk__' section that the comment is applicable for.Include only complete code lines, without line numbers. This snippet should represent the full specific PR code targeted for comment, at its first line should match 'startLine' and last line match 'endLine'. If the code snippet is a single line, that line should match both 'startLine' and 'endLine'"
+      ),
+    label: z
+      .string()
+      .describe(
+        "A single, descriptive label that best characterizes the suggestion type. Possible labels include 'security', 'possible bug', 'possible issue', 'performance', 'enhancement', 'best practice', 'maintainability', 'readability'. Other relevant labels are also acceptable."
+      ),
+  });
+
+  const reviewSchema = z.object({
+    estimated_effort_to_review: z
+      .number()
+      .min(1)
+      .max(5)
+      .describe(
+        "Estimate, on a scale of 1-5 (inclusive), the time and effort required to review this PR by an experienced and knowledgeable developer. 1 means short and easy review , 5 means long and hard review. Take into account the size, complexity, quality, and the needed changes of the PR code diff."
+      ),
+    score: z
+      .number()
+      .min(0)
+      .max(100)
+      .describe(
+        "Rate this PR on a scale of 0-100 (inclusive), where 0 means the worst possible PR code, and 100 means PR code of the highest quality, without any bugs or performance issues, that is ready to be merged immediately and run in production at scale."
+      ),
+    has_relevant_tests: z
+      .boolean()
+      .describe(
+        "True if the PR includes relevant tests added or updated. False otherwise."
+      ),
+    security_concerns: z
+      .string()
+      .describe(
+        "Does this PR code introduce possible vulnerabilities such as exposure of sensitive information (e.g., API keys, secrets, passwords), or security concerns like SQL injection, XSS, CSRF, and others ? Answer 'No' (without explaining why) if there are no possible issues. If there are security concerns or issues, start your answer with a short header, such as: 'Sensitive information exposure: ...', 'SQL injection: ...' etc. Explain your answer. Be specific and give examples if possible"
+      ),
+  });
+
+  let schema = z.object({
+    review: reviewSchema.describe("The full review of the PR"),
+    comments: z
+      .array(commentSchema)
+      .describe(
+        "Comments about possible bugs, security concerns, code quality, typos or regressions introduced in this PR."
+      ),
+  });
+
+  return (await runPrompt({
+    prompt: userPrompt,
+    systemPrompt,
+    schema,
+  })) as PullRequestReview;
 }
