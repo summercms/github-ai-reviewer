@@ -1,12 +1,24 @@
 import { runPrompt } from "./ai";
 import { z } from "zod";
+import { formatFileDiff } from "./diff";
 
 type PullRequestSummaryPrompt = {
   prTitle: string;
   prDescription: string;
   commitMessages: string[];
-  files: FileDiff[];
-  diff: string;
+  files: {
+    filename: string;
+    status:
+      | "added"
+      | "removed"
+      | "modified"
+      | "renamed"
+      | "copied"
+      | "changed"
+      | "unchanged";
+    previous_filename?: string;
+    patch?: string;
+  }[];
 };
 
 export type PullRequestSummary = {
@@ -46,11 +58,11 @@ ${pr.commitMessages.join("\n")}
 </Commit Messages>
 
 <Affected Files>
-${pr.files.map((file) => `- ${file.operation}: ${file.fileName}`).join("\n")}
+${pr.files.map((file) => `- ${file.status}: ${file.filename}`).join("\n")}
 </Affected Files>
 
 <File Diffs>
-${pr.diff}
+${pr.files.map((file) => formatFileDiff(file)).join("\n\n")}
 </File Diffs>
 
 Make sure each affected file is summarized and it's part of the returned JSON.
