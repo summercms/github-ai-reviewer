@@ -1,4 +1,4 @@
-import { warning } from "@actions/core";
+import { info, warning } from "@actions/core";
 import { Config } from "./config";
 import { initOctokit } from "./octokit";
 import { loadContext } from "./context";
@@ -30,6 +30,7 @@ export async function handlePullRequest(config: Config) {
     pull_number: pull_request.number,
   });
   const fileDiffs = files.map(parseFileDiff);
+  info(`successfully fetched file diffs`);
 
   // Create initial comment with the summary
   const initialComment = await octokit.rest.issues.createComment({
@@ -41,12 +42,13 @@ export async function handlePullRequest(config: Config) {
       fileDiffs
     ),
   });
-
+  info(`posted initial comment`);
   // Get commit messages
   const { data: commits } = await octokit.rest.pulls.listCommits({
     ...context.repo,
     pull_number: pull_request.number,
   });
+  info(`successfully fetched commit messages`);
 
   // Generate PR summary
   const summary = await runSummaryPrompt({
@@ -55,6 +57,7 @@ export async function handlePullRequest(config: Config) {
     commitMessages: commits.map((commit) => commit.commit.message),
     files: files,
   });
+  info(`generated pull request summary: ${summary.title}`);
 
   // Update PR title and description
   await octokit.rest.pulls.update({
@@ -63,6 +66,7 @@ export async function handlePullRequest(config: Config) {
     title: summary.title,
     body: summary.description,
   });
+  info(`updated pull request title and description`);
 
   // Update initial comment with the walkthrough
   await octokit.rest.issues.updateComment({
@@ -70,4 +74,5 @@ export async function handlePullRequest(config: Config) {
     comment_id: initialComment.data.id,
     body: buildWalkthroughMessage(summary),
   });
+  info(`posted walkthrough`);
 }

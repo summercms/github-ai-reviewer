@@ -10,7 +10,7 @@ export const initOctokit = (token?: string) => {
     throw new Error("No github token");
   }
   return new SmartOctokit({
-    auth: `token ${token}`,
+    auth: token,
     throttle: {
       onRateLimit: (
         retryAfter: any,
