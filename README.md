@@ -69,6 +69,12 @@ jobs:
           llm_model: "claude-3-5-sonnet-20241022"
 ```
 
+The action requires:
+
+- `GITHUB_TOKEN`: Automatically provided by GitHub Actions
+- `LLM_API_KEY`: Your API key (added in step 1)
+- `llm_model`: Which LLM model to use. Make the model is one of the LLM for which you install the API KEY
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
