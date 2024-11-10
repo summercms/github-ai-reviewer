@@ -81,13 +81,13 @@ export async function handlePullRequest() {
   info(`generated pull request summary: ${summary.title}`);
 
   // Update PR title and description
-  await octokit.rest.pulls.update({
-    ...context.repo,
-    pull_number: pull_request.number,
-    title: summary.title,
-    body: summary.description,
-  });
-  info(`updated pull request title and description`);
+  //   await octokit.rest.pulls.update({
+  //     ...context.repo,
+  //     pull_number: pull_request.number,
+  //     title: summary.title,
+  //     body: summary.description,
+  //   });
+  //   info(`updated pull request title and description`);
 
   // Update overview comment with the walkthrough
   await octokit.rest.issues.updateComment({
