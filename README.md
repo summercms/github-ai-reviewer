@@ -2,6 +2,11 @@
 
 🤖 An AI-powered code review assistant that helps teams maintain high code quality by providing automated, intelligent feedback on pull requests.
 
+[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/presubmitai?style=social)](https://x.com/presubmitai)
+[![Discord](https://img.shields.io/badge/Join%20community%20on-Discord-blue?logo=discord&style=flat-square)](https://discord.gg/FcAqqB3B)
+[![GitHub last commit](https://img.shields.io/github/last-commit/presubmit/ai-reviewer)](https://github.com/presubmit/ai-reviewer/commits)
+[![GitHub License](https://img.shields.io/github/license/presubmit/ai-reviewer?color=yellow)](https://github.com/presubmit/ai-reviewer/blob/main/LICENSE)
+
 ## Features
 
 - 🔍 **Intelligent Code Analysis**: Analyzes your pull requests for:
@@ -61,7 +66,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- 💬 [Discord Community](https://discord.com/invite/FcAqqB3B)
+- 💬 [Discord Community](https://discord.gg/FcAqqB3B)
 - 📧 [Email Support](mailto:bogdan@presubmit.ai)
 
 ---
