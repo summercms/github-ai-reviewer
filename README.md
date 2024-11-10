@@ -73,7 +73,7 @@ The action requires:
 
 - `GITHUB_TOKEN`: Automatically provided by GitHub Actions
 - `LLM_API_KEY`: Your API key (added in step 1)
-- `llm_model`: Which LLM model to use. Make the model is one of the LLM for which you install the API KEY
+- `llm_model`: Which LLM model to use. Make sure the model is [supported](https://github.com/presubmit/ai-reviewer/blob/main/src/ai.ts).
 
 ## Contributing
 
