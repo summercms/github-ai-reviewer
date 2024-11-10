@@ -29,7 +29,20 @@
 
 ## Usage
 
-1. Add this GitHub Action to your repository by creating `.github/workflows/presubmit.yml`:
+### Step 1: Add LLM_API_KEY secret
+
+1. Go to your repository's Settings > Secrets and Variables > Actions
+2. Click "New repository secret"
+3. Add a new secret with:
+   - Name: `LLM_API_KEY`
+   - Value: Your API key from one of these providers:
+     - [Anthropic Console](https://console.anthropic.com/) (Claude)
+     - [OpenAI API](https://platform.openai.com/api-keys) (GPT-4)
+     - [Google AI Studio](https://aistudio.google.com/app/apikeys) (Gemini)
+
+### Step 2: Create GitHub Workflow
+
+Add this GitHub Action to your repository by creating `.github/workflows/presubmit.yml`:
 
 ```yaml
 name: Presubmit.ai
