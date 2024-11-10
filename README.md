@@ -61,8 +61,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- 📚 [Documentation](https://presubmit.ai/docs)
-- 💬 [Discord Community](https://discord.gg/presubmit)
+- 💬 [Discord Community](https://discord.com/invite/FcAqqB3B)
 - 📧 [Email Support](mailto:bogdan@presubmit.ai)
 
 ---
