@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { info } from "@actions/core";
 import config from "./config";
@@ -19,6 +20,15 @@ const LLM_MODELS = [
   {
     name: "gpt-4o-mini",
     createAi: createOpenAI,
+  },
+  // Google
+  {
+    name: "gemini-1.5-flash",
+    createAi: createGoogleGenerativeAI,
+  },
+  {
+    name: "gemini-1.5-flash-latest",
+    createAi: createGoogleGenerativeAI,
   },
 ];
 

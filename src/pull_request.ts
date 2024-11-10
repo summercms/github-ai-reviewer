@@ -46,11 +46,11 @@ export async function handlePullRequest() {
   info(`successfully fetched commit messages`);
 
   // Find or create overview comment with the summary
-  const { data: comments } = await octokit.rest.issues.listComments({
+  const { data: existingComments } = await octokit.rest.issues.listComments({
     ...context.repo,
     issue_number: pull_request.number,
   });
-  let overviewComment = comments.find((comment) =>
+  let overviewComment = existingComments.find((comment) =>
     comment.body?.includes(OVERVIEW_MESSAGE_SIGNATURE)
   );
   if (overviewComment) {
@@ -81,13 +81,13 @@ export async function handlePullRequest() {
   info(`generated pull request summary: ${summary.title}`);
 
   // Update PR title and description
-  await octokit.rest.pulls.update({
-    ...context.repo,
-    pull_number: pull_request.number,
-    title: summary.title,
-    body: summary.description,
-  });
-  info(`updated pull request title and description`);
+  //   await octokit.rest.pulls.update({
+  //     ...context.repo,
+  //     pull_number: pull_request.number,
+  //     title: summary.title,
+  //     body: summary.description,
+  //   });
+  //   info(`updated pull request title and description`);
 
   // Update overview comment with the walkthrough
   await octokit.rest.issues.updateComment({
@@ -104,9 +104,14 @@ export async function handlePullRequest() {
     prDescription: pull_request.body || "",
     prSummary: summary.description,
   });
+  console.log("Review: ", review.review);
+  console.log("Comments: ", review.comments);
   info(`reviewed pull request`);
 
   // Post review comments
+  const comments = review.comments.filter(
+    (c) => c.content.trim() !== "" && files.some((f) => f.filename === c.file)
+  );
   await submitReview(
     octokit,
     context,
@@ -114,7 +119,7 @@ export async function handlePullRequest() {
       number: pull_request.number,
       headSha: pull_request.head.sha,
     },
-    review.comments
+    comments
   );
   info(`posted review comments`);
 }
