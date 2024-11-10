@@ -31,7 +31,8 @@ export default async function runSummaryPrompt(
 - Keep in mind that the 'Original title', 'Original description' and 'Commit messages' sections may be partial, simplistic, non-informative or out of date. Hence, compare them to the PR diff code, and use them only as a reference.
 - The generated title and description should prioritize the most significant changes.
 - When quoting variables or names from the code, use backticks (\`).
-- Return a summary for each single affected file or "no summary" if there is nothing to summarize.
+- Return a summary for each single affected file or if there is nothing to summarize simply use the status of the change (ie. "New file").
+- Start the overview with a verb at past tense like "Started", "Commented", "Generated" etc...
 \n`;
 
   let userPrompt = `
@@ -213,12 +214,12 @@ ${pr.files.map((file) => generateFileCodeDiff(file)).join("\n\n")}
     start_line: z
       .number()
       .describe(
-        "The relevant line number, from a '__new hunk__' section, where the comment starts (inclusive). Should be derived from the hunk line numbers, and correspond to the beginning of the 'existing code' snippet above. If comment spans a single line, it should equal the 'end_line'"
+        "The relevant line number, from a '__new hunk__' section, where the comment starts (inclusive). Should correspond to the prefix of the first line in the 'highlighted_code' snippet. If comment spans a single line, it should equal the 'end_line'"
       ),
     end_line: z
       .number()
       .describe(
-        "The relevant line number, from a '__new hunk__' section, where the comment ends (inclusive). Should be derived from the hunk line numbers, and correspond to the end of the 'existing code' snippet above. If comment spans a single line, it should equal the 'start_line'"
+        "The relevant line number, from a '__new hunk__' section, where the comment ends (inclusive). Should correspond to the prefix of the last line in the 'highlighted_code' snippet. If comment spans a single line, it should equal the 'start_line'"
       ),
     content: z
       .string()
