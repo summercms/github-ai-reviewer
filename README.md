@@ -88,4 +88,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-Built with 🖤 by [Presubmit](https://x.com/presubmitai)
+🖤 by [Presubmit](https://x.com/presubmitai)
