@@ -6,10 +6,16 @@ import { info } from "@actions/core";
 import config from "./config";
 
 const LLM_MODELS = [
+  // Anthropic
+  {
+    name: "claude-3-5-sonnet-20240620",
+    createAi: createAnthropic,
+  },
   {
     name: "claude-3-5-sonnet-20241022",
     createAi: createAnthropic,
   },
+  // OpenAI
   {
     name: "gpt-4o-mini",
     createAi: createOpenAI,
