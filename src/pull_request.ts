@@ -1,5 +1,5 @@
 import { info, warning } from "@actions/core";
-import { Config } from "./config";
+import config from "./config";
 import { initOctokit } from "./octokit";
 import { loadContext } from "./context";
 import runSummaryPrompt, { AIComment, runReviewPrompt } from "./prompts";
@@ -12,7 +12,7 @@ import { parseFileDiff } from "./diff";
 import { Octokit } from "@octokit/action";
 import { Context } from "@actions/github/lib/context";
 
-export async function handlePullRequest(config: Config) {
+export async function handlePullRequest() {
   const context = await loadContext();
   if (
     context.eventName !== "pull_request" &&

@@ -3,6 +3,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import { info } from "@actions/core";
+import config from "./config";
 
 const LLM_MODELS = [
   {
@@ -24,9 +25,9 @@ export async function runPrompt({
   systemPrompt?: string;
   schema: z.ZodObject<any, any>;
 }) {
-  const model = LLM_MODELS.find((m) => m.name === process.env.LLM_MODEL);
+  const model = LLM_MODELS.find((m) => m.name === config.llmModel);
   if (!model) {
-    throw new Error(`Unknown LLM model: ${process.env.LLM_MODEL}`);
+    throw new Error(`Unknown LLM model: ${config.llmModel}`);
   }
 
   const llm = model.createAi({ apiKey: process.env.LLM_API_KEY });
