@@ -64,7 +64,7 @@ export async function handlePullRequest() {
     ...context.repo,
     pull_number: pull_request.number,
   });
-  const fileDiffs = files.map((file) => parseFileDiff(file, reviewComments));
+  let filesToReview = files.map((file) => parseFileDiff(file, reviewComments));
   info(`successfully fetched file diffs`);
 
   let commitsReviewed: string[] = [];
@@ -81,12 +81,31 @@ export async function handlePullRequest() {
       warning(`error parsing overview payload: ${error}`);
     }
 
+    // Check if there are any incremental changes
+    const lastCommitReviewed = commitsReviewed.length
+      ? commitsReviewed[commitsReviewed.length - 1]
+      : null;
+    const incrementalDiff =
+      lastCommitReviewed && lastCommitReviewed != pull_request.head.sha
+        ? await octokit.rest.repos.compareCommits({
+            ...context.repo,
+            base: lastCommitReviewed,
+            head: pull_request.head.sha,
+          })
+        : null;
+    if (incrementalDiff?.data?.files) {
+      // If incremental review, only consider files that were modified within incremental change.
+      filesToReview = filesToReview.filter((f) =>
+        incrementalDiff.data.files?.some((f2) => f2.filename === f.filename)
+      );
+    }
+
     await octokit.rest.issues.updateComment({
       ...context.repo,
       comment_id: overviewComment.id,
       body: buildLoadingMessage(
         commits.filter((c) => !commitsReviewed.includes(c.sha)),
-        fileDiffs
+        filesToReview
       ),
     });
     info(`updated existing overview comment`);
@@ -97,7 +116,7 @@ export async function handlePullRequest() {
       await octokit.rest.issues.createComment({
         ...context.repo,
         issue_number: pull_request.number,
-        body: buildLoadingMessage(commits, fileDiffs),
+        body: buildLoadingMessage(commits, filesToReview),
       })
     ).data;
     info(`posted new overview loading comment`);
@@ -135,26 +154,6 @@ export async function handlePullRequest() {
   info(`updated overview comment with walkthrough`);
 
   // ======= START REVIEW =======
-
-  // Check if there are any incremental changes
-  const lastCommitReviewed = commitsReviewed.length
-    ? commitsReviewed[commitsReviewed.length - 1]
-    : null;
-  const incrementalDiff =
-    lastCommitReviewed && lastCommitReviewed != pull_request.head.sha
-      ? await octokit.rest.repos.compareCommits({
-          ...context.repo,
-          base: lastCommitReviewed,
-          head: pull_request.head.sha,
-        })
-      : null;
-  let filesToReview = fileDiffs;
-  if (incrementalDiff?.data?.files) {
-    // If incremental review, only consider files that were modified within incremental change.
-    filesToReview = filesToReview.filter((f) =>
-      incrementalDiff.data.files?.some((f2) => f2.filename === f.filename)
-    );
-  }
 
   const review = await runReviewPrompt({
     files: filesToReview,
