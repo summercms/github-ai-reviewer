@@ -7,6 +7,8 @@ import {
   buildLoadingMessage,
   buildWalkthroughMessage,
   OVERVIEW_MESSAGE_SIGNATURE,
+  PAYLOAD_TAG_CLOSE,
+  PAYLOAD_TAG_OPEN,
 } from "./messages";
 import { parseFileDiff } from "./diff";
 import { Octokit } from "@octokit/action";
@@ -30,14 +32,6 @@ export async function handlePullRequest() {
 
   const octokit = initOctokit(config.githubToken);
 
-  // Get modified files
-  const { data: files } = await octokit.rest.pulls.listFiles({
-    ...context.repo,
-    pull_number: pull_request.number,
-  });
-  const fileDiffs = files.map(parseFileDiff);
-  info(`successfully fetched file diffs`);
-
   // Get commit messages
   const { data: commits } = await octokit.rest.pulls.listCommits({
     ...context.repo,
@@ -53,14 +47,52 @@ export async function handlePullRequest() {
   let overviewComment = existingComments.find((comment) =>
     comment.body?.includes(OVERVIEW_MESSAGE_SIGNATURE)
   );
+  const isIncrementalReview = !!overviewComment;
+
+  // Maybe fetch review comments
+  const reviewComments = isIncrementalReview
+    ? (
+        await octokit.rest.pulls.listReviewComments({
+          ...context.repo,
+          pull_number: pull_request.number,
+        })
+      ).data
+    : [];
+
+  // Get modified files
+  const { data: files } = await octokit.rest.pulls.listFiles({
+    ...context.repo,
+    pull_number: pull_request.number,
+  });
+  const fileDiffs = files.map((file) => parseFileDiff(file, reviewComments));
+  info(`successfully fetched file diffs`);
+
+  let commitsReviewed: string[] = [];
   if (overviewComment) {
+    info(`running incremental review`);
+    try {
+      const payload = JSON.parse(
+        overviewComment.body
+          ?.split(PAYLOAD_TAG_OPEN)[1]
+          .split(PAYLOAD_TAG_CLOSE)[0] || "{}"
+      );
+      commitsReviewed = payload.commits;
+    } catch (error) {
+      warning(`error parsing overview payload: ${error}`);
+    }
+
     await octokit.rest.issues.updateComment({
       ...context.repo,
       comment_id: overviewComment.id,
-      body: buildLoadingMessage(commits, fileDiffs),
+      body: buildLoadingMessage(
+        commits.filter((c) => !commitsReviewed.includes(c.sha)),
+        fileDiffs
+      ),
     });
     info(`updated existing overview comment`);
   } else {
+    info(`running full review`);
+
     overviewComment = (
       await octokit.rest.issues.createComment({
         ...context.repo,
@@ -80,26 +112,52 @@ export async function handlePullRequest() {
   });
   info(`generated pull request summary: ${summary.title}`);
 
-  // Update PR title and description
-  //   await octokit.rest.pulls.update({
-  //     ...context.repo,
-  //     pull_number: pull_request.number,
-  //     title: summary.title,
-  //     body: summary.description,
-  //   });
-  //   info(`updated pull request title and description`);
+  // Update PR title if @presubmitai is mentioned in the title
+  if (pull_request.title.includes("@presubmitai")) {
+    info(`title contains @presubmitai, so generating a new title`);
+    await octokit.rest.pulls.update({
+      ...context.repo,
+      pull_number: pull_request.number,
+      title: summary.title,
+      // body: summary.description,
+    });
+  }
 
   // Update overview comment with the walkthrough
   await octokit.rest.issues.updateComment({
     ...context.repo,
     comment_id: overviewComment.id,
-    body: buildWalkthroughMessage(summary),
+    body: buildWalkthroughMessage(
+      summary,
+      commits.map((c) => c.sha)
+    ),
   });
   info(`updated overview comment with walkthrough`);
 
-  // Review PR code changes
+  // ======= START REVIEW =======
+
+  // Check if there are any incremental changes
+  const lastCommitReviewed = commitsReviewed.length
+    ? commitsReviewed[commitsReviewed.length - 1]
+    : null;
+  const incrementalDiff =
+    lastCommitReviewed && lastCommitReviewed != pull_request.head.sha
+      ? await octokit.rest.repos.compareCommits({
+          ...context.repo,
+          base: lastCommitReviewed,
+          head: pull_request.head.sha,
+        })
+      : null;
+  let filesToReview = fileDiffs;
+  if (incrementalDiff?.data?.files) {
+    // If incremental review, only consider files that were modified within incremental change.
+    filesToReview = filesToReview.filter((f) =>
+      incrementalDiff.data.files?.some((f2) => f2.filename === f.filename)
+    );
+  }
+
   const review = await runReviewPrompt({
-    files: fileDiffs,
+    files: filesToReview,
     prTitle: pull_request.title,
     prDescription: pull_request.body || "",
     prSummary: summary.description,
