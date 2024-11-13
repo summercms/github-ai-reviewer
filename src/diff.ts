@@ -205,6 +205,14 @@ function formatDiffHunk(hunk: Hunk): string {
     output += `__old hunk__\n${oldContent}\n`;
   }
 
+  if (hunk.commentChains?.length) {
+    output += `__comment_chain__\n${hunk.commentChains
+      .map((c) =>
+        c.comments.map((c) => `@${c.user.login}: ${c.body}`).join("\n")
+      )
+      .join("\n\n")}\n`;
+  }
+
   return output || "No changes in this hunk";
 }
 
@@ -238,6 +246,8 @@ export function generateFileCodeDiff(fileDiff: FileDiff): string {
   if (hunksText.length) {
     header += `\n\n${hunksText}`;
   }
+
+  console.log(header);
 
   return header;
 }

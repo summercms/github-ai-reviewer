@@ -68,6 +68,7 @@ export async function handlePullRequest() {
   info(`successfully fetched file diffs`);
 
   let commitsReviewed: string[] = [];
+  let lastCommitReviewed: string | null = null;
   if (overviewComment) {
     info(`running incremental review`);
     try {
@@ -82,9 +83,10 @@ export async function handlePullRequest() {
     }
 
     // Check if there are any incremental changes
-    const lastCommitReviewed = commitsReviewed.length
-      ? commitsReviewed[commitsReviewed.length - 1]
-      : null;
+    lastCommitReviewed =
+      commitsReviewed.length > 0
+        ? commitsReviewed[commitsReviewed.length - 1]
+        : null;
     const incrementalDiff =
       lastCommitReviewed && lastCommitReviewed != pull_request.head.sha
         ? await octokit.rest.repos.compareCommits({
@@ -99,24 +101,39 @@ export async function handlePullRequest() {
         incrementalDiff.data.files?.some((f2) => f2.filename === f.filename)
       );
     }
+  } else {
+    info(`running full review`);
+  }
 
+  const commitsToReview = commitsReviewed.length
+    ? commits.filter((c) => !commitsReviewed.includes(c.sha))
+    : commits;
+  if (commitsToReview.length === 0) {
+    info(`no new commits to review`);
+    return;
+  }
+
+  if (overviewComment) {
     await octokit.rest.issues.updateComment({
       ...context.repo,
       comment_id: overviewComment.id,
       body: buildLoadingMessage(
-        commits.filter((c) => !commitsReviewed.includes(c.sha)),
+        lastCommitReviewed ?? pull_request.base.sha,
+        commitsToReview,
         filesToReview
       ),
     });
     info(`updated existing overview comment`);
   } else {
-    info(`running full review`);
-
     overviewComment = (
       await octokit.rest.issues.createComment({
         ...context.repo,
         issue_number: pull_request.number,
-        body: buildLoadingMessage(commits, filesToReview),
+        body: buildLoadingMessage(
+          pull_request.base.sha,
+          commitsToReview,
+          filesToReview
+        ),
       })
     ).data;
     info(`posted new overview loading comment`);
