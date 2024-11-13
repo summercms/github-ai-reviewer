@@ -16,13 +16,30 @@ export type Hunk = {
   startLine: number;
   endLine: number;
   diff: string;
+  commentChains?: {
+    comments: ReviewComment[];
+  }[];
 };
 
 export type FileDiff = File & {
   hunks: Hunk[];
 };
 
-export function parseFileDiff(file: File): FileDiff {
+type ReviewComment = {
+  path: string;
+  body: string;
+  line?: number;
+  in_reply_to_id?: number;
+  id: number;
+  start_line?: number | null;
+  user: {
+    login: string;
+  };
+};
+export function parseFileDiff(
+  file: File,
+  reviewComments: ReviewComment[]
+): FileDiff {
   if (!file.patch) {
     return {
       ...file,
@@ -30,7 +47,7 @@ export function parseFileDiff(file: File): FileDiff {
     };
   }
 
-  const hunks: Hunk[] = [];
+  let hunks: Hunk[] = [];
 
   let currentHunk: Hunk | null = null;
   for (const line of file.patch.split("\n")) {
@@ -55,10 +72,46 @@ export function parseFileDiff(file: File): FileDiff {
     hunks.push(currentHunk);
   }
 
+  hunks = hunks.map((hunk) => {
+    return {
+      ...hunk,
+      commentChains: generateCommentChains(file, hunk, reviewComments),
+    };
+  });
+
   return {
     ...file,
     hunks,
   };
+}
+
+function generateCommentChains(
+  file: File,
+  hunk: Hunk,
+  reviewComments: ReviewComment[]
+): { comments: ReviewComment[] }[] {
+  const topLevelComments = reviewComments.filter(
+    (c) =>
+      !c.in_reply_to_id &&
+      c.path === file.filename &&
+      c.body.length &&
+      c.line &&
+      c.line <= hunk.endLine &&
+      c.line >= hunk.startLine &&
+      (!c.start_line ||
+        (c.start_line <= hunk.endLine && c.start_line >= hunk.startLine))
+  );
+
+  return topLevelComments.map((topLevelComment) => {
+    return {
+      comments: [
+        topLevelComment,
+        ...reviewComments.filter(
+          (c) => c.in_reply_to_id === topLevelComment.id
+        ),
+      ],
+    };
+  });
 }
 
 function removeDeletedLines(hunk: Hunk): Hunk {
@@ -101,8 +154,7 @@ function prependLineNumbers(hunk: Hunk): Hunk {
   });
 
   return {
-    startLine: hunk.startLine,
-    endLine: hunk.endLine,
+    ...hunk,
     diff: numberedLines.join("\n"),
   };
 }
@@ -153,6 +205,14 @@ function formatDiffHunk(hunk: Hunk): string {
     output += `__old hunk__\n${oldContent}\n`;
   }
 
+  if (hunk.commentChains?.length) {
+    output += `__comment_chain__\n${hunk.commentChains
+      .map((c) =>
+        c.comments.map((c) => `@${c.user.login}: ${c.body}`).join("\n")
+      )
+      .join("\n\n")}\n`;
+  }
+
   return output || "No changes in this hunk";
 }
 
@@ -186,6 +246,8 @@ export function generateFileCodeDiff(fileDiff: FileDiff): string {
   if (hunksText.length) {
     header += `\n\n${hunksText}`;
   }
+
+  console.log(header);
 
   return header;
 }

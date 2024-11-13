@@ -148,6 +148,13 @@ __old hunk__
  unchanged code line1
 -old code line2 removed in the PR
  unchanged code line3
+ __existing_comment_thread__
+ presubmitai: This is a comment on the code
+ user2: This is a reply to the comment above
+ __existing_comment_thread__
+ presubmitai: This is a comment on some other parts of the code
+ user2: This is a reply to the above comment
+
 
 @@ ... @@ def func2():
 __new hunk__
@@ -163,6 +170,7 @@ __new hunk__
 - We also added line numbers for the '__new hunk__' code, to help you refer to the code lines in your suggestions. These line numbers are not part of the actual code, and should only used for reference.
 - Code lines are prefixed with symbols ('+', '-', ' '). The '+' symbol indicates new code added in the PR, the '-' symbol indicates code removed in the PR, and the ' ' symbol indicates unchanged code. The review should address new code added in the PR code diff (lines starting with '+')
 - Use markdown formatting for your comments.
+- Do not return comments that are already covered by an existing comment chain.
 
 </IMPORTANT INSTRUCTIONS>
     
