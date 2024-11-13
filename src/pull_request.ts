@@ -248,7 +248,7 @@ async function submitReview(
       pull_number: pull_request.number,
       review_id: review.data.id,
       event: "COMMENT",
-      body: "Review submitted",
+      body: "Review complete",
     });
   } catch (error) {
     warning(`error submitting review: ${error}`);
