@@ -6,7 +6,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/presubmit/ai-reviewer)](https://github.com/presubmit/ai-reviewer/commits)
 [![GitHub License](https://img.shields.io/github/license/presubmit/ai-reviewer?color=yellow)](https://github.com/presubmit/ai-reviewer/blob/main/LICENSE)
 
-![review example](https://github.com/presubmit/ai-reviewer/blob/main/review_example.png?raw=true)
+![review example](https://github.com/presubmit/ai-reviewer/blob/main/assets/review_example.png?raw=true)
 
 ## Features
 
